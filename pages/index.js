@@ -1,5 +1,13 @@
+// pages/index.js
 import { useState, useEffect } from "react";
 import Head from "next/head";
+import dynamic from "next/dynamic";
+import { Search, Info } from "lucide-react";
+
+// Dynamically import ProductCard to avoid SSR issues with Next Image
+const ProductCard = dynamic(() => import("../components/ProductCard"), {
+  ssr: false,
+});
 
 export default function Home() {
   const [config, setConfig] = useState({
@@ -21,6 +29,14 @@ export default function Home() {
     root: "",
     isOneWay: false,
   });
+  const [destServer, setDestServer] = useState("staging");
+
+  // Search-related state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchMetadata, setSearchMetadata] = useState(null);
+  const [showScore, setShowScore] = useState(true);
 
   // Connect to Typesense
   const connectToTypesense = async () => {
@@ -69,6 +85,61 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Search function
+  const performSearch = async () => {
+    if (!searchQuery.trim() || !selectedCollection) return;
+
+    setSearchLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          collection: selectedCollection,
+          query: searchQuery,
+          searchFields: "name,brand,description", // Adjust based on your schema
+          config,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Search failed");
+
+      const data = await response.json();
+      setSearchResults(data.results || []);
+      setSearchMetadata({
+        found: data.found,
+        searchTime: data.search_time_ms,
+        originalQuery: data.request_params?.q,
+      });
+    } catch (err) {
+      setError(`Search error: ${err.message}`);
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Check if synonyms might be affecting the search
+  const checkSynonymMatch = (query) => {
+    const queryLower = query.toLowerCase();
+    const matchingSynonyms = synonyms.filter((synonym) => {
+      if (synonym.root) {
+        // One-way synonym
+        return (
+          synonym.synonyms.some((s) => s.toLowerCase().includes(queryLower)) ||
+          synonym.root.toLowerCase().includes(queryLower)
+        );
+      } else {
+        // Multi-way synonym
+        return synonym.synonyms.some((s) =>
+          s.toLowerCase().includes(queryLower)
+        );
+      }
+    });
+    return matchingSynonyms;
   };
 
   // Add or update synonym
@@ -131,7 +202,7 @@ export default function Home() {
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(config), // Send config directly, not nested
+          body: JSON.stringify(config),
         }
       );
 
@@ -140,7 +211,6 @@ export default function Home() {
         throw new Error(errorData.error || "Failed to delete synonym");
       }
 
-      // Refresh the synonyms list
       await fetchSynonyms();
     } catch (err) {
       console.error("Delete error:", err);
@@ -169,8 +239,13 @@ export default function Home() {
   useEffect(() => {
     if (selectedCollection) {
       fetchSynonyms();
+      // Clear search results when collection changes
+      setSearchResults([]);
+      setSearchMetadata(null);
     }
   }, [selectedCollection]);
+
+  const matchingSynonyms = searchQuery ? checkSynonymMatch(searchQuery) : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -191,30 +266,33 @@ export default function Home() {
         {!isConnected && (
           <div className="bg-white rounded-lg shadow p-6 mb-8">
             <h2 className="text-xl font-semibold mb-4">Connect to Typesense</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <input
-                type="text"
-                placeholder="Host (e.g., localhost)"
-                className="px-3 py-2 border rounded-md"
-                value={config.host}
-                onChange={(e) => setConfig({ ...config, host: e.target.value })}
-              />
-              <input
-                type="text"
-                placeholder="Port (default: 8108)"
-                className="px-3 py-2 border rounded-md"
-                value={config.port}
-                onChange={(e) => setConfig({ ...config, port: e.target.value })}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <select
                 className="px-3 py-2 border rounded-md"
-                value={config.protocol}
-                onChange={(e) =>
-                  setConfig({ ...config, protocol: e.target.value })
-                }
+                value={destServer}
+                onChange={(e) => {
+                  setDestServer(e.target.value);
+                  setConfig(
+                    e.target.value == "production"
+                      ? {
+                          ...config,
+                          host: "global-typesense.foodservicedirect.us",
+                          port: "443",
+                          path: "/",
+                          protocol: "https",
+                        }
+                      : {
+                          ...config,
+                          host: "canada.paperhouse.com",
+                          port: "8108",
+                          path: "/collections",
+                          protocol: "http",
+                        }
+                  );
+                }}
               >
-                <option value="http">HTTP</option>
-                <option value="https">HTTPS</option>
+                <option value="staging">Staging</option>
+                <option value="production">Production</option>
               </select>
               <input
                 type="password"
@@ -246,6 +324,7 @@ export default function Home() {
                   setIsConnected(false);
                   setSelectedCollection("");
                   setSynonyms([]);
+                  setSearchResults([]);
                 }}
                 className="text-sm text-red-600 hover:text-red-700"
               >
@@ -270,6 +349,105 @@ export default function Home() {
         {/* Synonyms Management */}
         {selectedCollection && (
           <>
+            {/* Test Search Section */}
+            <div className="bg-white rounded-lg shadow p-6 mb-8">
+              <h2 className="text-xl font-semibold mb-4">Test Search</h2>
+
+              <div className="flex gap-2 mb-4">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    placeholder="Search products to test synonyms..."
+                    className="w-full px-3 py-2 border rounded-md pr-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && performSearch()}
+                  />
+                  <Search
+                    className="absolute right-3 top-2.5 text-gray-400"
+                    size={20}
+                  />
+                </div>
+                <button
+                  onClick={performSearch}
+                  disabled={searchLoading || !searchQuery.trim()}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                  {searchLoading ? "Searching..." : "Search"}
+                </button>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={showScore}
+                    onChange={(e) => setShowScore(e.target.checked)}
+                  />
+                  <span className="text-sm">Show Scores</span>
+                </label>
+              </div>
+
+              {/* Synonym Match Indicator */}
+              {matchingSynonyms.length > 0 && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+                  <div className="flex items-start gap-2">
+                    <Info size={16} className="text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">
+                        Potential synonym matches for "{searchQuery}":
+                      </p>
+                      <ul className="mt-1 text-sm text-blue-700">
+                        {matchingSynonyms.map((syn) => (
+                          <li key={syn.id} className="mt-1">
+                            {syn.root ? (
+                              <>
+                                <span className="font-medium">{syn.root}</span>{" "}
+                                → {syn.synonyms.join(", ")}
+                                {syn.synonyms.includes(
+                                  searchQuery.toLowerCase()
+                                ) && " (one-way match)"}
+                              </>
+                            ) : (
+                              <>{syn.synonyms.join(" ↔ ")}</>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Search Metadata */}
+              {searchMetadata && (
+                <div className="mb-4 text-sm text-gray-600">
+                  Found {searchMetadata.found} results in{" "}
+                  {searchMetadata.searchTime}ms
+                  {searchMetadata.originalQuery && (
+                    <span> for "{searchMetadata.originalQuery}"</span>
+                  )}
+                </div>
+              )}
+
+              {/* Search Results */}
+              {searchResults.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {searchResults.map((product, index) => (
+                    <ProductCard
+                      key={product.id || index}
+                      product={product}
+                      showScore={showScore}
+                      collectionName={selectedCollection}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {searchResults.length === 0 && searchMetadata && (
+                <p className="text-gray-500 text-center py-8">
+                  No products found for "{searchQuery}"
+                </p>
+              )}
+            </div>
+
             {/* Add/Edit Synonym Form */}
             <div className="bg-white rounded-lg shadow p-6 mb-8">
               <h2 className="text-xl font-semibold mb-4">
