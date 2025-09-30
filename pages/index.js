@@ -9,6 +9,14 @@ const ProductCard = dynamic(() => import("../components/ProductCard"), {
   ssr: false,
 });
 
+// Try to import Navigation - it might not exist yet
+let Navigation;
+try {
+  Navigation = require("../components/Navigation").default;
+} catch (e) {
+  Navigation = () => null; // Fallback if Navigation doesn't exist
+}
+
 export default function Home() {
   const [config, setConfig] = useState({
     host: "",
@@ -250,17 +258,28 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Head>
-        <title>Typesense Synonyms Manager</title>
+        <title>Synonyms - Typesense Manager</title>
         <meta
           name="description"
           content="Manage Typesense collection synonyms"
         />
       </Head>
 
+      {Navigation && <Navigation />}
+
       <div className="max-w-7xl mx-auto p-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">
-          Typesense Synonyms Manager
+          Synonyms Manager
         </h1>
+
+        {/* Quick Navigation Links */}
+        {!Navigation && (
+          <div className="mb-4">
+            <a href="/overrides" className="text-blue-600 hover:text-blue-800 mr-4">
+              Go to Override Rules →
+            </a>
+          </div>
+        )}
 
         {/* Connection Form */}
         {!isConnected && (
