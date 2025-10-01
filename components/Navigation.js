@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
-import { BookOpen, Shield, LogOut, Menu, X } from 'lucide-react';
+import { BookOpen, Shield, LogOut, Menu, X, User } from 'lucide-react';
 import { useState } from 'react';
 
 export default function Navigation() {
@@ -11,6 +11,11 @@ export default function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isActive = (path) => router.pathname === path;
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
 
   const navItems = [
     { path: '/', label: 'Synonyms', icon: BookOpen },
@@ -24,7 +29,7 @@ export default function Navigation() {
           <div className="flex">
             {/* Logo/Brand */}
             <div className="flex-shrink-0 flex items-center">
-              <h2 className="text-xl font-bold text-gray-900">Typesense Manager</h2>
+              <h2 className="text-xl font-bold text-gray-900">FSD Typesense Manager</h2>
             </div>
 
             {/* Desktop Navigation */}
@@ -53,12 +58,13 @@ export default function Navigation() {
           <div className="hidden sm:flex sm:items-center sm:space-x-4">
             {user && (
               <>
-                <span className="text-sm text-gray-700">
-                  Welcome, <span className="font-medium">{user.username}</span>
-                </span>
+                <div className="flex items-center text-sm text-gray-700">
+                  <User size={16} className="mr-1" />
+                  <span className="font-medium">{user.username}</span>
+                </div>
                 <button
-                  onClick={logout}
-                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  onClick={handleLogout}
+                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                 >
                   <LogOut size={16} className="mr-1" />
                   Logout
@@ -107,11 +113,12 @@ export default function Navigation() {
           <div className="pt-4 pb-3 border-t border-gray-200">
             {user && (
               <div className="px-4 space-y-3">
-                <div className="text-sm text-gray-700">
-                  Signed in as <span className="font-medium">{user.username}</span>
+                <div className="flex items-center text-sm text-gray-700">
+                  <User size={16} className="mr-2" />
+                  Signed in as <span className="font-medium ml-1">{user.username}</span>
                 </div>
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="flex items-center text-sm text-gray-500 hover:text-gray-700"
                 >
                   <LogOut size={16} className="mr-2" />

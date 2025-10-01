@@ -10,6 +10,7 @@ export default async function handler(req, res) {
     config = {
       host: req.query.host,
       port: req.query.port,
+      path: req.query.path,
       protocol: req.query.protocol,
       apiKey: req.query.apiKey
     };
@@ -26,14 +27,14 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing configuration' });
   }
 
-  const baseUrl = `${config.protocol}://${config.host}:${config.port}/collections/${collection}/synonyms`;
+  const baseUrl = `${config.protocol}://${config.host}:${config.port}${config.path}/${collection}/synonyms`;
   const headers = {
     'X-TYPESENSE-API-KEY': config.apiKey,
     'Content-Type': 'application/json'
   };
 
-  console.log(`${req.method} request to:`, baseUrl);
-  console.log('Config:', config);
+  // console.log(`${req.method} request to:`, baseUrl);
+  // console.log('Config:', config);
 
   try {
     switch (req.method) {
@@ -62,8 +63,8 @@ export default async function handler(req, res) {
           synonymData.root = req.body.root;
         }
         
-        console.log('Creating synonym:', synonymData);
-        console.log('URL:', `${baseUrl}/${synonymId}`);
+        // console.log('Creating synonym:', synonymData);
+        // console.log('URL:', `${baseUrl}/${synonymId}`);
         
         // Typesense requires PUT to a specific ID endpoint for creation
         const postResponse = await fetch(`${baseUrl}/${synonymId}`, {
@@ -92,7 +93,7 @@ export default async function handler(req, res) {
           updateData.root = req.body.root;
         }
         
-        console.log('Updating synonym:', updateData);
+        // console.log('Updating synonym:', updateData);
         
         const putResponse = await fetch(`${baseUrl}/${id}`, {
           method: 'PUT',
@@ -110,8 +111,8 @@ export default async function handler(req, res) {
         return res.status(200).json(updated);
 
       case 'DELETE':
-        console.log('Deleting synonym with ID:', id);
-        console.log('Full DELETE URL:', `${baseUrl}/${id}`);
+        // console.log('Deleting synonym with ID:', id);
+        // console.log('Full DELETE URL:', `${baseUrl}/${id}`);
         
         const deleteResponse = await fetch(`${baseUrl}/${id}`, {
           method: 'DELETE',
@@ -130,7 +131,7 @@ export default async function handler(req, res) {
         
         // Typesense returns the deleted synonym object
         const deleteResult = await deleteResponse.json();
-        console.log('Delete successful:', deleteResult);
+        // console.log('Delete successful:', deleteResult);
         return res.status(200).json({ success: true, deleted: deleteResult });
 
       default:

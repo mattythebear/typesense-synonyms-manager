@@ -30,12 +30,12 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <Head>
-        <title>Login - Typesense Manager</title>
+        <title>Login - FSD Typesense Manager</title>
       </Head>
 
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Typesense Manager</h1>
+          <h1 className="text-3xl font-bold text-gray-900">FSD Typesense Manager</h1>
           <p className="mt-2 text-gray-600">Sign in to manage your collections</p>
         </div>
 

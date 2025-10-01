@@ -3,28 +3,20 @@ import { useState, useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useAuth } from "../contexts/AuthContext";
+import { useTypesense } from "../contexts/TypesenseContext";
 import Navigation from "../components/Navigation";
-import { Plus, Trash2, Edit, Shield, Search, Filter, Hash, X } from "lucide-react";
+import ConnectionSelector from "../components/ConnectionSelector";
+import SearchPreview from "../components/SearchPreview";
+import { Plus, Trash2, Edit, Shield, Filter, Hash, X } from "lucide-react";
 
 export default function Overrides() {
   const router = useRouter();
-
   const { user, loading: authLoading } = useAuth();
+  const { config, selectedCollection, error: contextError, setError } = useTypesense();
   
-  const [config, setConfig] = useState({
-    host: "",
-    port: "8108",
-    protocol: "http",
-    apiKey: "",
-  });
-  
-  const [collections, setCollections] = useState([]);
-  const [selectedCollection, setSelectedCollection] = useState("");
   const [overrides, setOverrides] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [isConnected, setIsConnected] = useState(false);
-  const [destServer, setDestServer] = useState("staging");
+  const [error, setLocalError] = useState("");
   
   // Override form state
   const [editingId, setEditingId] = useState(null);
@@ -43,56 +35,47 @@ export default function Overrides() {
   const [includeInput, setIncludeInput] = useState({ id: "", position: 1 });
   const [excludeInput, setExcludeInput] = useState("");
 
+  // Combine errors
+  const displayError = error || contextError;
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
     }
   }, [user, authLoading, router]);
 
-  // Connect to Typesense
-  const connectToTypesense = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch("/api/collections", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
-      });
-
-      if (!response.ok) throw new Error("Failed to connect to Typesense");
-
-      const data = await response.json();
-      setCollections(data);
-      setIsConnected(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Fetch overrides for selected collection
   const fetchOverrides = async () => {
     if (!selectedCollection) return;
 
     setLoading(true);
+    setLocalError("");
     setError("");
     try {
-      const response = await fetch(
-        "/api/overrides?" +
-          new URLSearchParams({
-            collection: selectedCollection,
-            ...config,
-          })
-      );
+      const params = new URLSearchParams({
+        collection: selectedCollection,
+        host: config.host,
+        port: config.port,
+        path: config.path,
+        protocol: config.protocol,
+        apiKey: config.apiKey
+      });
+      
+      // console.log('Fetching overrides with params:', params.toString());
+      
+      const response = await fetch(`/api/overrides?${params.toString()}`);
 
-      if (!response.ok) throw new Error("Failed to fetch overrides");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch overrides:', response.status, errorText);
+        throw new Error(`Failed to fetch overrides: ${response.status}`);
+      }
 
       const data = await response.json();
       setOverrides(data.overrides || []);
     } catch (err) {
-      setError(err.message);
+      console.error('Fetch overrides error:', err);
+      setLocalError(err.message);
     } finally {
       setLoading(false);
     }
@@ -133,11 +116,12 @@ export default function Overrides() {
   // Save override
   const saveOverride = async () => {
     if (!overrideForm.query) {
-      setError("Query is required");
+      setLocalError("Query is required");
       return;
     }
 
     setLoading(true);
+    setLocalError("");
     setError("");
 
     try {
@@ -160,7 +144,7 @@ export default function Overrides() {
       await fetchOverrides();
       resetForm();
     } catch (err) {
-      setError(err.message);
+      setLocalError(err.message);
     } finally {
       setLoading(false);
     }
@@ -171,6 +155,7 @@ export default function Overrides() {
     if (!confirm("Are you sure you want to delete this override?")) return;
 
     setLoading(true);
+    setLocalError("");
     setError("");
 
     try {
@@ -191,7 +176,7 @@ export default function Overrides() {
       await fetchOverrides();
     } catch (err) {
       console.error("Delete error:", err);
-      setError(err.message);
+      setLocalError(err.message);
     } finally {
       setLoading(false);
     }
@@ -234,6 +219,8 @@ export default function Overrides() {
   useEffect(() => {
     if (selectedCollection) {
       fetchOverrides();
+    } else {
+      setOverrides([]);
     }
   }, [selectedCollection]);
 
@@ -248,107 +235,26 @@ export default function Overrides() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Head>
-        <title>Override Rules - Typesense Manager</title>
+        <title>Override Rules - FSD Typesense Manager</title>
       </Head>
 
-      {Navigation && <Navigation />}
+      <Navigation />
 
       <div className="max-w-7xl mx-auto p-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8 flex items-center gap-3">
+          <Shield size={32} />
           Override Rules Manager
         </h1>
 
-        {/* Quick Navigation Links */}
-        {!Navigation && (
-          <div className="mb-4">
-            <a href="/" className="text-blue-600 hover:text-blue-800 mr-4">
-              ← Go to Synonyms
-            </a>
-          </div>
-        )}
-
-        {/* Connection Form */}
-        {!isConnected && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h2 className="text-xl font-semibold mb-4">Connect to Typesense</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <select
-                className="px-3 py-2 border rounded-md"
-                value={destServer}
-                onChange={(e) => {
-                  setDestServer(e.target.value);
-                  setConfig(
-                    e.target.value == "production"
-                      ? {
-                          ...config,
-                          host: "global-typesense.foodservicedirect.us",
-                          port: "443",
-                          protocol: "https",
-                        }
-                      : {
-                          ...config,
-                          host: "canada.paperhouse.com",
-                          port: "8108",
-                          protocol: "http",
-                        }
-                  );
-                }}
-              >
-                <option value="staging">Staging</option>
-                <option value="production">Production</option>
-              </select>
-              <input
-                type="password"
-                placeholder="API Key"
-                className="px-3 py-2 border rounded-md"
-                value={config.apiKey}
-                onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
-              />
-            </div>
-            <button
-              onClick={connectToTypesense}
-              disabled={loading || !config.host || !config.apiKey}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
-            >
-              {loading ? "Connecting..." : "Connect"}
-            </button>
-          </div>
-        )}
-
-        {/* Collection Selector */}
-        {isConnected && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Select Collection</h2>
-              <button
-                onClick={() => {
-                  setIsConnected(false);
-                  setSelectedCollection("");
-                  setOverrides([]);
-                }}
-                className="text-sm text-red-600 hover:text-red-700"
-              >
-                Disconnect
-              </button>
-            </div>
-            <select
-              className="w-full px-3 py-2 border rounded-md"
-              value={selectedCollection}
-              onChange={(e) => setSelectedCollection(e.target.value)}
-            >
-              <option value="">Select a collection...</option>
-              {collections.map((col) => (
-                <option key={col.name} value={col.name}>
-                  {col.name} ({col.num_documents} documents)
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        {/* Shared Connection Selector */}
+        <ConnectionSelector />
 
         {/* Override Management */}
         {selectedCollection && (
           <>
+            {/* Shared Search Preview - pass overrides */}
+            <SearchPreview overrides={overrides} />
+
             {/* Add/Edit Override Form */}
             <div className="bg-white rounded-lg shadow p-6 mb-8">
               <h2 className="text-xl font-semibold mb-4">
@@ -606,9 +512,9 @@ export default function Overrides() {
         )}
 
         {/* Error Display */}
-        {error && (
+        {displayError && (
           <div className="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
+            {displayError}
           </div>
         )}
       </div>

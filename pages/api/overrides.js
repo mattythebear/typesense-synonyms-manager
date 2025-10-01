@@ -2,12 +2,17 @@
 export default async function handler(req, res) {
   const { collection, id } = req.query;
   
+  console.log('Overrides API - Method:', req.method);
+  console.log('Overrides API - Query params:', req.query);
+  console.log('Overrides API - Collection:', collection);
+  
   // Extract config based on method
   let config;
   if (req.method === 'GET') {
     config = {
       host: req.query.host,
       port: req.query.port,
+      path: req.query.path,
       protocol: req.query.protocol,
       apiKey: req.query.apiKey
     };
@@ -22,7 +27,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing configuration' });
   }
 
-  const baseUrl = `${config.protocol}://${config.host}:${config.port}/collections/${collection}/overrides`;
+  if (!collection) {
+    console.error('Missing collection name');
+    return res.status(400).json({ error: 'Collection name is required' });
+  }
+
+  const baseUrl = `${config.protocol}://${config.host}:${config.port}${config.path}/${collection}/overrides`;
   const headers = {
     'X-TYPESENSE-API-KEY': config.apiKey,
     'Content-Type': 'application/json'
