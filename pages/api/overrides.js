@@ -93,7 +93,7 @@ export default async function handler(req, res) {
           overrideData.stop_processing = req.body.stop_processing;
         }
 
-        console.log('Creating override:', overrideData);
+        // console.log('Creating override:', overrideData);
         
         const postResponse = await fetch(`${baseUrl}/${overrideData.id}`, {
           method: 'PUT',
@@ -148,7 +148,7 @@ export default async function handler(req, res) {
           updateData.stop_processing = req.body.stop_processing;
         }
 
-        console.log('Updating override:', updateData);
+        // console.log('Updating override:', updateData);
         
         const putResponse = await fetch(`${baseUrl}/${id}`, {
           method: 'PUT',
@@ -166,7 +166,7 @@ export default async function handler(req, res) {
         return res.status(200).json(updated);
 
       case 'DELETE':
-        console.log('Deleting override with ID:', id);
+        // console.log('Deleting override with ID:', id);
         
         const deleteResponse = await fetch(`${baseUrl}/${id}`, {
           method: 'DELETE',
@@ -182,7 +182,7 @@ export default async function handler(req, res) {
         }
         
         const deleteResult = await deleteResponse.json();
-        console.log('Delete successful:', deleteResult);
+        // console.log('Delete successful:', deleteResult);
         return res.status(200).json({ success: true, deleted: deleteResult });
 
       default:

@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     // Build search parameters
     const searchParams = new URLSearchParams({
       q: query,
-      query_by: searchFields || 'name,brand,description',
+      query_by: searchFields || 'name,category,description,category_l4,category_l3,category_l2,category_l1,manufacturer,brand',
       per_page: '12',
       page: '1',
       // Include these to help identify synonym matches
@@ -24,6 +24,8 @@ export default async function handler(req, res) {
       highlight_affix_num_tokens: '4',
       enable_highlight_v1: 'true'
     });
+
+    console.log(searchParams);
 
     const response = await fetch(`${searchUrl}?${searchParams}`, {
       headers: {

@@ -50,7 +50,7 @@ export default function Home() {
         apiKey: config.apiKey
       });
       
-      // console.log('Fetching synonyms with params:', params.toString());
+      console.log('Fetching synonyms with params:', params.toString());
       
       const response = await fetch(`/api/synonyms?${params.toString()}`);
 

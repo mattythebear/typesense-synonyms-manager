@@ -38,7 +38,7 @@ export default function SearchPreview({ synonyms = [], overrides = [] }) {
         body: JSON.stringify({
           collection: selectedCollection,
           query: searchQuery,
-          searchFields: "name,brand,description",
+          searchFields: "name,category,description,category_l4,category_l3,category_l2,category_l1,manufacturer,brand",
           config,
         }),
       });

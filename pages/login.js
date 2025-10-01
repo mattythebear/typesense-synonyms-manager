@@ -91,8 +91,8 @@ export default function Login() {
 
             <div className="text-center text-sm text-gray-600 mt-4">
               <p>Default credentials:</p>
-              <p className="font-mono">Username: admin</p>
-              <p className="font-mono">Password: typesense123</p>
+              <p className="font-mono">Username: go-get</p>
+              <p className="font-mono">Password: ur-own-damn-pwd</p>
             </div>
           </form>
         </div>

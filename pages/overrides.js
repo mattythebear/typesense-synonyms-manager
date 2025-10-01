@@ -61,7 +61,7 @@ export default function Overrides() {
         apiKey: config.apiKey
       });
       
-      // console.log('Fetching overrides with params:', params.toString());
+      console.log('Fetching overrides with params:', params.toString());
       
       const response = await fetch(`/api/overrides?${params.toString()}`);
 
