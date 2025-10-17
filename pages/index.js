@@ -45,7 +45,7 @@ export default function Home() {
         collection: selectedCollection,
         host: config.host,
         port: config.port,
-        path: config.path,
+        path: "/collections", // config.path,
         protocol: config.protocol,
         apiKey: config.apiKey
       });
