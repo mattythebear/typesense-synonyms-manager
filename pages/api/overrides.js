@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     config = {
       host: req.query.host,
       port: req.query.port,
-      path: req.query.path,
+      path: "/collections", //req.query.path,
       protocol: req.query.protocol,
       apiKey: req.query.apiKey
     };
@@ -20,6 +20,7 @@ export default async function handler(req, res) {
     config = req.body.config || req.body;
   } else {
     config = req.body.config;
+    config.path = "/collections"; //@TODO fix
   }
 
   if (!config || !config.host || !config.apiKey) {
